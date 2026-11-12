@@ -80,7 +80,7 @@ def prediction(features):
     return top2_predictions, probabilities
 
 # 7. Test new img
-TEST_IMG = 'image.png'
+TEST_IMG = 'image_happy.png'
 OUTPUT_IMG_EMOTION = 'result_image.png'
 
 def test_img(img_path):

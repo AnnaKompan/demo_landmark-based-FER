@@ -163,7 +163,7 @@ def run_webcam():
                     continue
                 # first detected face
                 full_landmarks = full_result.face_landmarks[0]
-                # crop face detected, resize, bgrtorgb
+                # crop face detected, resize !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
                 face_crop, bbox = crop_face(
                     frame,
                     full_landmarks
@@ -173,6 +173,9 @@ def run_webcam():
                     (96, 96),
                     interpolation=cv2.INTER_AREA
                 )
+
+                # face_crop = cv2.resize(frame, (96, 96))
+                # w/o cropping, just resize the whole frame to 96x96, for testing
                 rgb_crop = cv2.cvtColor(
                     face_crop,
                     cv2.COLOR_BGR2RGB
@@ -192,10 +195,15 @@ def run_webcam():
                     mp_crop,
                     timestamp_ms
                 )
+                if len(crop_result.face_landmarks) == 0:
+                    continue
                 crop_landmarks = crop_result.face_landmarks[0]
                 features = extract_features(crop_landmarks)
                 features = preprocessing(features)
                 top_predictions, probabilities = prediction(features)
+                # see all preds
+                for emotion, probability in zip(class_names, probabilities):
+                    print(f"{emotion}: {probability * 100:.2f}%")
                 # draw landmarks
                 for landmark in full_landmarks:
                     x = int(landmark.x * width)
