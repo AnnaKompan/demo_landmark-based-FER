@@ -39,12 +39,13 @@ if (model.output_shape[-1] != len(class_names)):
     print("Model output is: ", model.output_shape[-1], " and not equal to ", len(class_names), " number of classes")
 
 # 3. Initializr MP landmarker
-
 BASE_OPTIONS = python.BaseOptions(model_asset_path=LANDMARKER_PATH)
+# Img option is for cropping face detected - holds model setings
 IMG_OPTIONS = vision.FaceLandmarkerOptions(base_options=BASE_OPTIONS,
                                        output_face_blendshapes=True,
                                        running_mode=vision.RunningMode.IMAGE,
                                        num_faces=1)
+# Video option is for detecting landmarks on cropped face
 VIDEO_OPTIONS = vision.FaceLandmarkerOptions(base_options=BASE_OPTIONS,
                                              running_mode=vision.RunningMode.VIDEO,
                                              num_faces=1)
@@ -83,10 +84,8 @@ def prediction(features):
     return top2_predictions, probabilities
 
 # 7. Test Live
-TEST_IMG = 'image.png'
-OUTPUT_IMG_EMOTION = 'result_image.png'
-
 def crop_face(frame, landmarks, scale=1.35):
+    # color channels skipped
     height, width, _ = frame.shape
 
     # 7.1 get face bbox
@@ -121,6 +120,7 @@ def crop_face(frame, landmarks, scale=1.35):
     return face_crop, bbox
 
 def run_webcam():
+    # start webcam
     cap = cv2.VideoCapture(0)
     print('Webcam started, press "q" to quit.')
     # monotonic time for FPS calculation
@@ -128,6 +128,7 @@ def run_webcam():
     last_timestamp_ms = 0
 
     try:
+        # Img option is for cropping face detected, Video option is for detecting landmarks on cropped face
         with vision.FaceLandmarker.create_from_options(
             IMG_OPTIONS
         ) as locator, vision.FaceLandmarker.create_from_options(
@@ -135,12 +136,17 @@ def run_webcam():
         ) as feature_landmarker:
             while True:
                 # 1. Capture webcam frame
+                # ret is a boolean indicating if the frame was read correctly
                 ret, frame = cap.read()
+                if not ret:
+                    print("Error: Failed to capture frame")
+                    break
                 height, width = frame.shape[:2]
                 rgb_frame = cv2.cvtColor(
                     frame,
                     cv2.COLOR_BGR2RGB
                 )
+                # convert to mp.Image (SRGB format) for mediapipe
                 mp_frame = mp.Image(
                     image_format=mp.ImageFormat.SRGB,
                     data=np.ascontiguousarray(rgb_frame)
@@ -161,21 +167,24 @@ def run_webcam():
                     if cv2.waitKey(1) & 0xFF == ord("q"):
                         break
                     continue
+
                 # first detected face
                 full_landmarks = full_result.face_landmarks[0]
-                # crop face detected, resize !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                # crop face detected, resize !!!!!!!
                 face_crop, bbox = crop_face(
                     frame,
                     full_landmarks
                 )
+                # interpolation method for shrinking to 96x96
                 face_crop = cv2.resize(
                     face_crop,
                     (96, 96),
                     interpolation=cv2.INTER_AREA
                 )
 
-                # face_crop = cv2.resize(frame, (96, 96))
                 # w/o cropping, just resize the whole frame to 96x96, for testing
+                # face_crop = cv2.resize(frame, (96, 96))
+
                 rgb_crop = cv2.cvtColor(
                     face_crop,
                     cv2.COLOR_BGR2RGB
@@ -184,17 +193,20 @@ def run_webcam():
                     image_format=mp.ImageFormat.SRGB,
                     data=np.ascontiguousarray(rgb_crop)
                 )
-                # generate increasing timestamp for video frames, monotonic time in ms
+
+                # timestamp_ms is used to indicate the frame order
+                # otherwise it will return the same result for all frames
                 timestamp_ms = max(
                     last_timestamp_ms + 1,
                     int((time.monotonic() - start_time) * 1000)
                 )
                 last_timestamp_ms = timestamp_ms
-                # extract landmarks, timestamp_ms shows the frame order, otherwise it will return the same result for all frames
                 crop_result = feature_landmarker.detect_for_video(
                     mp_crop,
                     timestamp_ms
                 )
+
+                # if no face detected in the cropped image, skip this frame
                 if len(crop_result.face_landmarks) == 0:
                     continue
                 crop_landmarks = crop_result.face_landmarks[0]
