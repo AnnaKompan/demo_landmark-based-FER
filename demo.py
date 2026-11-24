@@ -86,7 +86,8 @@ OUTPUT_IMG_EMOTION = 'result_image.png'
 def test_img(img_path):
     # 7.1 get prediction
     img = cv2.imread(img_path)
-    output_img = img.copy()
+    img = cv2.imread(img_path)
+    output_img = cv2.resize(img, (600, 600),interpolation=cv2.INTER_CUBIC)
     # resize to 96*96 (trained on) for MLP model, inter area is best for shrinking
     img = cv2.resize(img, (96, 96), interpolation=cv2.INTER_AREA)
     rgb_img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
